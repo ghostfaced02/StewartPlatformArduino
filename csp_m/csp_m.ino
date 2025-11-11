@@ -25,7 +25,7 @@ double initialPos = 402;
 double maxDist = initialPos + 260;
 double increment = 78.44/80;
 
-double maxDeg = 14.10;
+double maxDeg = 20.0;
 
 //-----------------------------------------------------------------------------
 

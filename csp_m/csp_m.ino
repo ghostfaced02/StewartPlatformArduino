@@ -20,7 +20,7 @@ int RPWM_Output[] = {4, 6};
 int clk_pin[] = {18, 19};
 int dt_pin[] = {3,2};
 
-long oldPosition[] = {-999, -999}; 
+long oldPosition[] = {-998, -999}; 
 double initialPos = 402;
 double maxDist = initialPos + 260;
 double increment = 78.44/80;

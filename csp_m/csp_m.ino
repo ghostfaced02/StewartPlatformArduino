@@ -9,7 +9,7 @@ unsigned long lastUpdate = 0;
 
 //-----------------------------------------------------------------------------
 //{22, 23, 24, 26, 28, 45};
-//{12, 10, 8, 6, 4, 45};
+//{12, 
 
 int LPWM_Output[] = {5, 7};
 int RPWM_Output[] = {4, 6};
@@ -25,7 +25,7 @@ double initialPos = 402;
 double maxDist = initialPos + 260;
 double increment = 78.44/80;
 
-double maxDeg = 20.0;
+double maxDeg = 14.10;
 
 //-----------------------------------------------------------------------------
 

@@ -51,7 +51,7 @@ void setup() {
     pinMode(LPWM_Output[i], OUTPUT);
 
     pid[i].SetMode(AUTOMATIC);
-    pid[i].SetOutputLimits(-120, 120);
+    pid[i].SetOutputLimits(-200, 200);
   }
   
   Serial.println("Retracting actuators...");
@@ -110,7 +110,7 @@ long newPosition[2];
 void controlLoop(){
   for(int i = 0; i<2; i++){
     newPosition[i] = encoder[i].read();
-    if (newPosition != oldPosition[i]) {
+    if (newPosition[i] != oldPosition[i]) {
       oldPosition[i] = newPosition[i];
     }
   }

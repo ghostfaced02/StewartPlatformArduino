@@ -31,8 +31,8 @@ double maxDeg = 20.0;
 
 double result[6]; //output vector of leg lenghts
 
-double input[] = {0,0};              
-double output[] = {0,0};
+double input[] = {0,0}; //encoder readings converted to leg lenghts              
+double output[] = {0,0}; //PID output
 
 double Kp = 20.0, Ki = 0.01, Kd = 0.1;
 
@@ -222,7 +222,7 @@ void setup() {
     pinMode(LPWM_Output[i], OUTPUT);
 
     pid[i].SetMode(AUTOMATIC);
-    pid[i].SetOutputLimits(-120, 120);
+    pid[i].SetOutputLimits(-200, 200);
   }
   
   Serial.println("Retracting actuators...");

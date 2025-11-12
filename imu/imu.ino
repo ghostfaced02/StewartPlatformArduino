@@ -24,28 +24,12 @@ void onRequest() {
 void handleIMUData() {
   String data = server.arg("plain");  // Read POST data
   Serial.println("Received from phone: " + data);
-  if(data.startsWith("shadow1")){
-    shadowmode = true;
-    Serial.println("Shadow ON");
-  }else if(data.startsWith("shadow0")){
-    shadowmode = false;
-    Serial.println("Shadow OFF");
-    latestData = "0.0,0.0,480.0,0.0,0.0,0.0;";  // Store it for next I2C request
-  }
-  server.send(200, "text/plain", "Data Received");
-}
-
-void handleminiSPData() {
-  String data = server.arg("plain");  // Read POST data
-  Serial.println("Received from miniSP: " + data);
-  if(shadowmode){
-    latestData = "shadow," + data;
-  }
+  latestData = data;
   server.send(200, "text/plain", "Data Received");
 }
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   
   // Start I2C as slave
   Wire.begin(I2C_SLAVE_ADDR);
@@ -59,7 +43,6 @@ void setup() {
 
   // Setup HTTP endpoint
   server.on("/imu", HTTP_POST, handleIMUData);
-  server.on("/miniSP", HTTP_POST, handleminiSPData);
   server.begin();
 }
 

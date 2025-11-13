@@ -174,23 +174,6 @@ class platform {
         }
 
         result[i] = res; //leg lengths
-
-        unsigned long now = millis();
-        double dt = (now - prevFFTime) / 1000.0; // seconds
-
-        if (dt > 0) {
-          for (int i = 0; i < 6; i++) {
-            double vel = (result[i] - prevResult[i]) / dt;   // mm/s
-            double acc = (vel - ((prevResult[i] - result[i]) / dt)) / dt; // rough acc estimate
-
-            // Save for later use by controlLoop
-            feedforwardVel[i] = vel;
-            feedforwardAcc[i] = acc;
-
-            prevResult[i] = result[i];
-          }
-          prevFFTime = now;
-        }
       }
       
     }

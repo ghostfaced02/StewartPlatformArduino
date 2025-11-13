@@ -7,10 +7,8 @@ unsigned long lastUpdate = 0;
 
 int address = 2; // I2C address of the slave device
 
-float val1, val2, vel1, vel2, acc1, acc2;
+float val1, val2;
 double result[2]; //output vector of leg lenghts
-double feedforwardVel[2];
-double feedforwardAcc[2];
 
 int LPWM_Output[] = {4, 6};
 int RPWM_Output[] = {5, 7};
@@ -41,7 +39,7 @@ PID pid[] = {
 };
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   Wire.begin(address); // Slave address
   Wire.onReceive(receiveEvent);
   
@@ -87,10 +85,6 @@ void receiveEvent(int bytes) {
   if (bytes >= 2 * sizeof(float)) {
     Wire.readBytes((char*)&val1, sizeof(float));
     Wire.readBytes((char*)&val2, sizeof(float));
-    Wire.readBytes((char*)&vel1, sizeof(float));
-    Wire.readBytes((char*)&vel2, sizeof(float));
-    Wire.readBytes((char*)&acc1, sizeof(float));
-    Wire.readBytes((char*)&acc2, sizeof(float));
 
     if(val1 == 0 && val2 == 0){
       Serial.println("Retracting actuators...");
@@ -107,21 +101,15 @@ void receiveEvent(int bytes) {
 
     result[0] = val1;
     result[1] = val2;
-    feedforwardVel[0] = vel1;
-    feedforwardVel[1] = vel2;
-    feedforwardAcc[0] = acc1;
-    feedforwardAcc[1] = acc2;
-    
 
     controlLoop();
   }
 }
 
-long newPosition[2];
-void controlLoop(){
+long newPosition[2];void controlLoop(){
   for(int i = 0; i<2; i++){
     newPosition[i] = encoder[i].read();
-    if (newPosition != oldPosition[i]) {
+    if (newPosition[i] != oldPosition[i]) {
       oldPosition[i] = newPosition[i];
     }
   }
@@ -132,17 +120,7 @@ void controlLoop(){
     double error = abs(result[i] - input[i]);
     if (error > ERROR_MARGIN) {
         pid[i].Compute();
-
-        // Feedforward (tune these gains!)
-        double Kff_v = 0.0*255/90;   // velocity feedforward gain
-        double Kff_a = 0.00*255/90;   // acceleration feedforward gain
-        double ff = Kff_v * feedforwardVel[i] + Kff_a * feedforwardAcc[i];
-
-        // Combine PID + feedforward
-        double motorCmd = output[i] + ff;
-
-        // Apply to motor
-        motorControl(motorCmd, i);
+        motorControl(output[i], i);
     } else {
         motorControl(0, i);
     }

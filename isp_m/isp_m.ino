@@ -113,7 +113,7 @@ class platform {
         return;
       }
 
-      printPosition(targetPos);
+      //printPosition(targetPos);
 
       oldTarget = targetPos;    
 
@@ -204,15 +204,12 @@ position parsePosition(String input) {
     return position(values[0], values[1], values[2], psi_rad, phi_rad, theta_rad);
 }
 
-
-
 //-----------------------------------------------------------------------------
-
 
 platform p;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   Wire.begin();
   delay(500);
 
@@ -287,7 +284,7 @@ void loop() {
 
   retracked = false;
 
-  Serial.println(data);
+  // Serial.println(data);
 
   target = parsePosition(data);
 

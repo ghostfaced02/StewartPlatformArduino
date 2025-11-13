@@ -20,7 +20,7 @@ int RPWM_Output[] = {4, 6};
 int clk_pin[] = {18, 19};
 int dt_pin[] = {3,2};
 
-long oldPosition[] = {-998, -999}; 
+long oldPosition[] = {-999, -999}; 
 double initialPos = 402;
 double maxDist = initialPos + 260;
 double increment = 78.44/80;
@@ -35,14 +35,6 @@ double input[] = {0,0};
 double output[] = {0,0};
 
 double Kp = 20.0, Ki = 0.01, Kd = 0.1;
-
-
-
-double feedforwardVel[6] = {0,0,0,0,0,0};
-double feedforwardAcc[6] = {0,0,0,0,0,0};
-double prevResult[6] = {0,0,0,0,0,0};   // previous leg lengths
-unsigned long prevFFTime = 0;
-
 
 PID pid[] = {
     PID(&input[0], &output[0], &result[0], Kp, Ki, Kd, DIRECT),
@@ -239,41 +231,13 @@ position parsePosition(String input) {
     return position(values[0], values[1], values[2], psi_rad, phi_rad, theta_rad);
 }
 
-position parseLegLength(String input) {
-  Serial.print("INput to parseleglength:");
-  Serial.println(input);
-
-  input.trim();  // Remove leading/trailing whitespace
-
-  
-  double values[6] = {0, 0, 0, 0, 0, 0};  // Initialize all to 0
-  int index = 0;
-
-  // Create a modifiable local copy
-  char buffer[64];
-  input.toCharArray(buffer, sizeof(buffer));
-
-  char* token = strtok(buffer, ",");
-  while (token != nullptr && index < 6) {
-    values[index++] = atof(token);
-    token = strtok(nullptr, ",");
-  }
-
-  // Construct and return a position object
-  return position(values[0], values[1], values[2],
-                  values[3], values[4], values[5]);
-}
-
-
-
-
 //-----------------------------------------------------------------------------
 
 
 platform p;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   Wire.begin();
   delay(500);
 
@@ -283,7 +247,7 @@ void setup() {
     pinMode(LPWM_Output[i], OUTPUT);
 
     pid[i].SetMode(AUTOMATIC);
-    pid[i].SetOutputLimits(-120, 120);
+    pid[i].SetOutputLimits(-200, 200);
   }
   
   Serial.println("Retracting actuators...");
@@ -306,18 +270,8 @@ position target(0,0,500,0,0, 0);
 String data;
 
 bool retracked = false;
-bool wavemode = false;
-bool shadowmode = false;
-
-//Circular wave motion
-unsigned long waveStartTime = 0;
-double waveRadius = 40;   // mm radius of circular wave
-double waveHeight = 50;   // mm amplitude on Z
-double waveSpeed = 0.001; // radians/ms (controls speed)
-
 
 void loop() {
-  Serial.println("loop");
   char buffer[64];
   Wire.requestFrom(3, 64);  // Request up to 64 bytes from ESP32
 
@@ -332,8 +286,6 @@ void loop() {
 
   data = String(buffer);
 
-  Serial.println(data);
-
   if (data.length() == 0) {
     Serial.println("No data received from ESP32 revert to home");
     data = "0.0,0.0,480.0,0.0,0.0,0.0";
@@ -344,8 +296,8 @@ void loop() {
       return;
     }
     Serial.println("Retracting actuators...");
-    sendToSlave(1, 0, 0, 0, 0, 0, 0);
-    sendToSlave(2, 0, 0, 0, 0, 0, 0);
+    sendToSlave(1, 0, 0);
+    sendToSlave(2, 0, 0);
     for (int i = 0; i < 2; i++) {
       analogWrite(RPWM_Output[i], 200);
       analogWrite(LPWM_Output[i], 0);
@@ -356,71 +308,26 @@ void loop() {
       analogWrite(LPWM_Output[i], 0);
     }
     retracked = true;
-    wavemode = false;
-    shadowmode = false;
     return;
-  } else if (data.startsWith("wave")) {
-    if (!wavemode) {
-        wavemode = true;
-        retracked = false;
-        waveStartTime = millis();
-        Serial.println("Wave mode started");
-    }
-  } else if (data.startsWith("shadow")) {
-      wavemode = false;
-      retracked = false;
-      shadowmode = true;
-      Serial.println("Shadow mode started");
-      target = parseLegLength(data.substring(7));
-      printPosition(target);
-  } else {
-      shadowmode = false;
-      wavemode = false;
-      target = parsePosition(data);
   }
 
-  if (wavemode) {
-    unsigned long t = millis() - waveStartTime;
-    double angle = t * waveSpeed;
+  retracked = false;
 
-    // Circular XY trajectory
-    //double x = waveRadius * cos(angle);
-    //double y = waveRadius * sin(angle);
-    
-    double x = 10 * cos(angle) *PI/180;
-    double y = 10 * sin(angle)*PI/180;
+  // Serial.println(data);
 
-    target = position(0, 0, 500, 0, x, y);
-  }
-    
+  target = parsePosition(data);
 
-  //DEBUG
-  //Serial.println(data);  
   // printPosition(target);
 
-  //PID control loop
   if (millis() - lastUpdate >= PID_INTERVAL) {
       lastUpdate = millis();
-      if(shadowmode){
-        target.toArray(result);
-      }else{
-        p.calcTargetLegLength(target);
-      }
+      p.calcTargetLegLength(target);
 
-
-      Serial.println("Printing current target:");
-      for(int i=0; i<6; i++){
-        Serial.print(result[i]);
-        Serial.print(",");
-      }
-      Serial.println("");
-
-      sendToSlave(1, result[2], result[3], feedforwardVel[2], feedforwardVel[3], feedforwardAcc[2], feedforwardAcc[3]);
-      sendToSlave(2, result[4], result[5], feedforwardVel[4], feedforwardVel[5], feedforwardAcc[4], feedforwardAcc[5]);
+      sendToSlave(1, result[2], result[3]);
+      sendToSlave(2, result[4], result[5]);
 
       controlLoop();
 
-      //DEBUG
       // Serial.print("Position1:");
       // Serial.print(input[0]);
       // Serial.print(",");
@@ -450,17 +357,7 @@ void controlLoop(){
     double error = abs(result[i] - input[i]);
     if (error > ERROR_MARGIN) {
         pid[i].Compute();
-
-        // Feedforward (tune these gains!)
-        double Kff_v = 0.0*255/90;   // velocity feedforward gain
-        double Kff_a = 0.00*255/90;   // acceleration feedforward gain        
-        double ff = Kff_v * feedforwardVel[i] + Kff_a * feedforwardAcc[i];
-
-        // Combine PID + feedforward
-        double motorCmd = output[i] + ff;
-
-        // Apply to motor
-        motorControl(motorCmd, i);
+        motorControl(output[i], i);
     } else {
         motorControl(0, i);
     }
@@ -479,27 +376,23 @@ void motorControl(double speed, int motorNum) {
 }
 
 
-void sendToSlave(byte slaveAddress, double val1, double val2, double vel1, double vel2, double acc1, double acc2) {
+void sendToSlave(byte slaveAddress, double val1, double val2) {
   Wire.beginTransmission(slaveAddress);
 
   Wire.write((uint8_t*)&val1, sizeof(val1));
   Wire.write((uint8_t*)&val2, sizeof(val2));
-  Wire.write((uint8_t*)&val1, sizeof(vel1));
-  Wire.write((uint8_t*)&val2, sizeof(vel2));
-  Wire.write((uint8_t*)&val1, sizeof(acc1));
-  Wire.write((uint8_t*)&val2, sizeof(acc2));
 
   Wire.endTransmission();
 }
 
 void printPosition(const position& pos) {
   Serial.print("Position: ");
-  Serial.print(pos.x); Serial.print(", ");
-  Serial.print(pos.y); Serial.print(", ");
-  Serial.print(pos.z); Serial.print(", ");
-  Serial.print(pos.psi); Serial.print(" , ");
-  Serial.print(pos.theta); Serial.print(", ");
-  Serial.println(pos.phi);
+  Serial.print("x = "); Serial.print(pos.x); Serial.print(", ");
+  Serial.print("y = "); Serial.print(pos.y); Serial.print(", ");
+  Serial.print("z = "); Serial.print(pos.z); Serial.print(", ");
+  Serial.print("psi = "); Serial.print(pos.psi * 180.0 / PI); Serial.print(" deg, ");
+  Serial.print("theta = "); Serial.print(pos.theta * 180.0 / PI); Serial.print(" deg, ");
+  Serial.print("phi = "); Serial.print(pos.phi * 180.0 / PI); Serial.println(" deg");
 }
 
 
